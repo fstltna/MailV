@@ -50,13 +50,12 @@ derivative of the source he published at newtonresearch.org.
 | `source/` | The MPW/NTK source tree, laid out for a Basilisk II / SheepShaver shared ("Unix") folder. The hidden `.finf/` and `.rsrc/` folders hold each file's Mac type/creator and resource fork. **Copy this folder into the emulator through the Unix volume, not with a plain download**, or NTK won't recognise its files. |
 | `docs/final-scripts.txt` | The final NewtonScript for every changed NTK method, labelled by file and method. These changes live inside NTK's binary layout files. Paste them into a fresh copy of the source to reproduce the build. |
 | `docs/native-changes.diff` | Readable diff of all native (C++) changes against Simon's original. |
+| `release/MailV-6.0.0.pkg` | Ready-to-install package. Drag it onto Einstein, or install it with NCU/NewtonInstaller. Delete any older Mail V from Storage first. |
 | `tests/` | Host-side tests for the rewritten decoders. Run `python3 tests/extract.py && g++ -o dt tests/decoder-tests.cpp && ./dt`. |
 
-The NTK layout and proto files in `source/` (`IMAP FSM`, `IMAP Parser`,
-`protoMailer`, `thePrefsForm`, `Definitions` and so on) are **Simon's
-originals**. The NewtonScript changes are in `docs/final-scripts.txt`. If you
-have the edited NTK files from a working build, commit them here to replace
-the originals.
+The NTK files in `source/Projects/Mail/MailV/` are the **edited 6.0 versions**
+from a working build (version 6.0.0, About link `NewtonCity.org/mailv`).
+`docs/final-scripts.txt` documents what changed in them, in readable form.
 
 ## Building
 
@@ -73,11 +72,7 @@ Requirements (all run under Basilisk II or SheepShaver, Mac OS 7.5.5–9):
      right after `Global Functions` in the build order (Project → Process
      Earlier). **Quit and relaunch NTK after adding a new `.ntkc`**, because NTK
      only loads native modules when it opens a project.
-   - Remove the entries for files that weren't published (`GIF.ntkc`,
-     `EncodingRegistry.stream`). Add `Global Functions` and use NIE Public API
-     from NewtonDev's Sample Code.
-   - Apply the scripts in `docs/final-scripts.txt`.
-   - Build Package.
+   - Build Package. The project already includes the 6.0 changes.
 
 ## Debugging tips
 
