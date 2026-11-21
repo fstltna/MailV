@@ -1,0 +1,378 @@
+diff --git a/NCT_Projects/SM_NCT/SM/DecodeCard.cp b/NCT_Projects/SM_NCT/SM/DecodeCard.cp
+index 8efeba1..241e1ab 100644
+--- a/NCT_Projects/SM_NCT/SM/DecodeCard.cp
++++ b/NCT_Projects/SM_NCT/SM/DecodeCard.cp
+@@ -4,6 +4,7 @@
+ 
+ #include "Objects.h"
+ #include "ctype.h"
++#include "NCTCompat.h"	// 2026
+ 
+ 
+ /*------------------------------------------------------------------------------
+diff --git a/NCT_Projects/SM_NCT/SM/DecodeFunc.cp b/NCT_Projects/SM_NCT/SM/DecodeFunc.cp
+index 098e993..663e622 100644
+--- a/NCT_Projects/SM_NCT/SM/DecodeFunc.cp
++++ b/NCT_Projects/SM_NCT/SM/DecodeFunc.cp
+@@ -8,6 +8,7 @@
+ #include "UStringUtils.h"
+ #include "ctype.h"
+ #include "UnicodeMapper.h"
++#include "NCTCompat.h"	// 2026
+ #include "ObjHeader.h"
+ 
+ 
+@@ -74,6 +75,14 @@ Ref MakeBinary(RefArg rcvr, RefArg binClass, unsigned binSize)
+ }
+ 
+ 
++static int IsHexChar(UniChar ch)
++{
++	if (ch >= '0' && ch <= '9') return 1;
++	if (ch >= 'A' && ch <= 'F') return 1;
++	if (ch >= 'a' && ch <= 'f') return 1;
++	return 0;
++}
++
+ unsigned char ToHex(UniChar ch)
+ {
+ 	unsigned x = (ch & 0x7F) - 0x30;	//	base on 0
+@@ -701,17 +710,25 @@ Ref DecodeHeader(RefArg rcvr, RefArg ioText)
+ 				UniChar * codedStart;
+ 				long      codedCount;
+ 
++				// 2026: bounded copy - an unterminated "=?" (eg Subject: "what is 2+2=?")
++				// used to overflow cstr[] and then run past the end of the string.
+ 				pcstr = cstr;
+-				while (*srcPtr && *srcPtr != '?')			// copy charset
+-					*pcstr++ = *srcPtr++;
++				while (*srcPtr && *srcPtr != '?' && *srcPtr > ' ' && *srcPtr < 0x80
++						&& pcstr < cstr + sizeof(cstr) - 1)		// copy charset
++					*pcstr++ = (char) *srcPtr++;
+ 				*pcstr = 0;
++				if (*srcPtr != '?' || pcstr == cstr
++				 || srcPtr[1] == 0 || srcPtr[2] != '?')
++				{
++					srcPtr = phraseStart + 1;					// not an encoded-word: leave it alone
++					continue;
++				}
++				for (pcstr = cstr; *pcstr; pcstr++)			// RFC 2231 "charset*lang"
++					if (*pcstr == '*') { *pcstr = 0; break; }
+ 				InstallCharToUnicodeEncoding(rcvr, MakeSymbol(cstr));
+ 
+ 				encodingStart = tolower(*++srcPtr);
+-				while (*srcPtr && *srcPtr != '?')			// skip encoding
+-					srcPtr++;
+-				if (*srcPtr)
+-					srcPtr++;
++				srcPtr += 2;										// skip encoding and '?'
+ 
+ 				codedStart = srcPtr;
+ 				while (*srcPtr)
+@@ -797,7 +814,8 @@ Ref DecodeQuotedPrintable(RefArg rcvr, RefArg ioText)
+ 		unsigned char * srcPtr = (unsigned char *) textPtr;
+ 		unsigned char * stopPtr = srcPtr + originalSize;
+ 		unsigned char * destPtr;
+-		unsigned char quotedChar;
++		unsigned char quotedChar = 0;
++		unsigned char firstChar = 0;
+ 		enum
+ 		{
+ 			kNothing,
+@@ -825,26 +843,45 @@ Ref DecodeQuotedPrintable(RefArg rcvr, RefArg ioText)
+ 				break;
+ 
+ 			case kQuote:
+-				if (*srcPtr == '\015')				// CR
++				if (*srcPtr == '\015' || *srcPtr == '\012')	// CR, LF or CRLF
+ 				{
+-					if (*(srcPtr+1) == '\012')
++					if (*srcPtr == '\015' && srcPtr + 1 < stopPtr && *(srcPtr+1) == '\012')
+ 						srcPtr++;						// skip LF
+ 					quotedState = kNothing;			//	unfold "=\n"
+ 				}
+-				else
++				else if (IsHexChar(*srcPtr))
+ 				{
++					firstChar = *srcPtr;
+ 					quotedChar = ToHex(*srcPtr);
+ 					quotedState = kQuoted1;
+ 				}
++				else										// 2026: stray '=' - keep it literally
++				{
++					*destPtr++ = '=';
++					*destPtr++ = *srcPtr;
++					quotedState = kNothing;
++				}
+ 				break;
+ 
+ 			case kQuoted1:
+-				quotedChar = (quotedChar << 4) | ToHex(*srcPtr);
+-				*destPtr++ = quotedChar;
++				if (IsHexChar(*srcPtr))
++				{
++					quotedChar = (quotedChar << 4) | ToHex(*srcPtr);
++					*destPtr++ = quotedChar;
++				}
++				else										// 2026: malformed escape - keep it literally
++				{
++					*destPtr++ = '=';
++					*destPtr++ = firstChar;
++					*destPtr++ = *srcPtr;
++				}
+ 				quotedState = kNothing;
+ 			}
+ 		}
+-		*destPtr = kEndOfCharString;
++		// 2026: when nothing was decoded destPtr == stopPtr, and writing the NUL
++		// there corrupted the heap byte just past the end of the binary object.
++		if (destPtr < stopPtr)
++			*destPtr = kEndOfCharString;
+ 		actualSize = destPtr - (unsigned char *) textPtr;
+ 	END_WITH_LOCKED_BINARY(ioText)
+ 
+@@ -901,44 +938,43 @@ Ref DecodeBase64(RefArg rcvr, RefArg ioText)
+ 		41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1
+ 	};
+ 
+-	union
+-	{
+-		unsigned long asLong;
+-		unsigned char asChar[4];	// asChar[0] is never used
+-	} bits;
++	// 2026: rewritten. The old loop indexed base64[] (128 entries) with bytes
++	// >= 0x80, read past the end of short inputs, and folded CR/LF that fell
++	// inside a 4-char group into the data as -1 bits.
+ 	unsigned actualSize = 0;
+ 
+ 	WITH_LOCKED_BINARY(ioText, textPtr)
+ 		unsigned char * srcPtr = (unsigned char *) textPtr;
+-		unsigned char * stopPtr = srcPtr + Length(ioText) - 4;
++		unsigned char * stopPtr = srcPtr + Length(ioText);
+ 		unsigned char * dstPtr = srcPtr;
+-		long extra = 0;
++		unsigned long quad = 0;
++		int n = 0;
+ 
+-		while (srcPtr <= stopPtr)
++		for ( ; srcPtr < stopPtr; srcPtr++)
+ 		{
+-			while (srcPtr < stopPtr && base64[*srcPtr] < 0)
+-				srcPtr++;										// look for valid base64 character
+-			if (srcPtr <= stopPtr)
++			unsigned char ch = *srcPtr;
++			if (ch == '=')
++				break;											// padding: end of data
++			if (ch >= 0x80 || base64[ch] < 0)
++				continue;										// skip CR, LF, spaces, junk
++			quad = (quad << 6) | (unsigned long) base64[ch];
++			if (++n == 4)
+ 			{
+-				bits.asLong = (base64[*srcPtr++] << 18)	// use next 4 chars...
+-								| (base64[*srcPtr++] << 12)
+-								| (base64[*srcPtr++] <<  6)
+-								|  base64[*srcPtr++];
+-				if (srcPtr > stopPtr)
+-				{
+-					if (*--srcPtr == '=')					// adjust length of final tuple
+-					{
+-						extra++;
+-						if (*--srcPtr == '=')
+-							extra++;
+-					}
+-				}
+-				*dstPtr++ = bits.asChar[1];				// ...to decode 3 bytes
+-				*dstPtr++ = bits.asChar[2];
+-				*dstPtr++ = bits.asChar[3];
++				*dstPtr++ = (unsigned char) (quad >> 16);	// ...to decode 3 bytes
++				*dstPtr++ = (unsigned char) (quad >> 8);
++				*dstPtr++ = (unsigned char) quad;
++				quad = 0;
++				n = 0;
+ 			}
+ 		}
+-		actualSize = (dstPtr - (unsigned char *) textPtr) - extra;
++		if (n == 3)
++		{
++			*dstPtr++ = (unsigned char) (quad >> 10);
++			*dstPtr++ = (unsigned char) (quad >> 2);
++		}
++		else if (n == 2)
++			*dstPtr++ = (unsigned char) (quad >> 4);
++		actualSize = dstPtr - (unsigned char *) textPtr;
+ 	END_WITH_LOCKED_BINARY(ioText)
+ 
+ 	SetLength(ioText, actualSize);
+diff --git a/NCT_Projects/SM_NCT/SM/NCTCompat.h b/NCT_Projects/SM_NCT/SM/NCTCompat.h
+new file mode 100644
+index 0000000..a25ad51
+--- /dev/null
++++ b/NCT_Projects/SM_NCT/SM/NCTCompat.h
+@@ -0,0 +1,46 @@
++/*------------------------------------------------------------------------------
++	NCTCompat.h  (2026)
++	Fallbacks for macros that MailV's original build environment provided
++	but the NewtonDev NCT headers do not. Each is defined only if missing.
++------------------------------------------------------------------------------*/
++
++#ifndef __NCTCOMPAT_H
++#define __NCTCOMPAT_H
++
++#ifndef kVariableLengthArray
++#define kVariableLengthArray 1
++#endif
++
++#ifndef MAKEINT
++#define MAKEINT(i)		(((long) (i)) << 2)
++#endif
++
++#ifndef MAKEPTR
++#define MAKEPTR(p)		((Ref)((char *)(p) + 1))
++#endif
++
++#ifndef RPTR
++#define RPTR(p)			((char *)((Ref)(p) & ~3L))
++#endif
++
++#ifndef ISREALPTR
++#define ISREALPTR(r)	((((Ref)(r)) & 3) == 1)
++#endif
++
++#ifndef BOOL
++#define BOOL			int
++#endif
++
++#ifndef YES
++#define YES				1
++#endif
++
++#ifndef NO
++#define NO				0
++#endif
++
++#ifndef LONGALIGN
++#define LONGALIGN(n)	((((long) (n)) + 3) & ~3L)
++#endif
++
++#endif /* __NCTCOMPAT_H */
+diff --git a/NCT_Projects/SM_NCT/SM/ObjHeader.h b/NCT_Projects/SM_NCT/SM/ObjHeader.h
+index 0ef60e7..5d23710 100644
+--- a/NCT_Projects/SM_NCT/SM/ObjHeader.h
++++ b/NCT_Projects/SM_NCT/SM/ObjHeader.h
+@@ -2,6 +2,8 @@
+ #ifndef __OBJHEADER_H
+ #define __OBJHEADER_H
+ 
++#include "NCTCompat.h"	// 2026
++
+ 
+ /*----------------------------------------------------------------------
+ 	O b j e c t   H e a d e r
+diff --git a/NCT_Projects/SM_NCT/SM/PackageParts.h b/NCT_Projects/SM_NCT/SM/PackageParts.h
+index eca7fb7..2c72914 100644
+--- a/NCT_Projects/SM_NCT/SM/PackageParts.h
++++ b/NCT_Projects/SM_NCT/SM/PackageParts.h
+@@ -1,6 +1,8 @@
+ #ifndef __NEWTON_PACKAGE_H
+ #define __NEWTON_PACKAGE_H
+ 
++#include "NCTCompat.h"	// 2026
++
+ 
+ typedef unsigned long	Date;
+ 
+diff --git a/NCT_Projects/SM_NCT/SM/UnRelocate.cp b/NCT_Projects/SM_NCT/SM/UnRelocate.cp
+index 31e5b0e..1ac443f 100644
+--- a/NCT_Projects/SM_NCT/SM/UnRelocate.cp
++++ b/NCT_Projects/SM_NCT/SM/UnRelocate.cp
+@@ -3,6 +3,7 @@
+ ------------------------------------------------------------------------------*/
+ 
+ #include "Objects.h"
++#include "NCTCompat.h"	// 2026
+ #include "ObjHeader.h"
+ #include "PackageParts.h"
+ 
+diff --git a/NCT_Projects/SM_NCT/SM/UnicodeMapper.cp b/NCT_Projects/SM_NCT/SM/UnicodeMapper.cp
+index 539996b..4270af1 100644
+--- a/NCT_Projects/SM_NCT/SM/UnicodeMapper.cp
++++ b/NCT_Projects/SM_NCT/SM/UnicodeMapper.cp
+@@ -526,40 +526,41 @@ static long	ConvertFromUnicodeFunc_UTF8(const UniChar * inStr, void * outStr, vo
+ 
+ static long	ConvertToUnicodeFunc_UTF8(const void * inStr, UniChar * outStr, void * map, long numOfChars)
+ {
++	// 2026: rewritten. Newton strings are UCS-2, so characters outside the BMP
++	// (emoji, which most modern mail contains) become '?'. The old code treated
++	// 4-byte sequences as 3-byte ones and passed stray continuation bytes through.
++	const UniChar kUnmappable = '?';
+ 	unsigned char ch;
+-	unsigned char chBits;
+ 	const unsigned char * p = (const unsigned char *) inStr;
+-	UniChar utf8ch;
+ 	UniChar * s = outStr;
+-	for ( ; numOfChars > 0 && (ch = *p++) != kEndOfCharString; numOfChars--)
++	while (numOfChars > 0 && (ch = *p) != kEndOfCharString)
+ 	{
+-		chBits = ch & 0xE0;
+-		if (chBits == 0xE0)
++		p++;
++		numOfChars--;
++		if (ch < 0x80)
+ 		{
+-			utf8ch = (ch & 0x0F) << 12;
+-			if (--numOfChars > 0 && (ch = *p) != kEndOfCharString)
+-			{
+-				p++;
+-				utf8ch |= ((ch & 0x3F) << 6);
+-				if (--numOfChars > 0 && (ch = *p) != kEndOfCharString)
+-				{
+-					p++;
+-					*s++ = utf8ch | (ch & 0x3F);
+-				}
+-			}
++			if (ch != 0x0A)
++				*s++ = ch;
++			continue;
+ 		}
+-		else if (chBits == 0xC0)
++		unsigned long cp;
++		int extra;
++		if ((ch & 0xE0) == 0xC0)		{ extra = 1; cp = ch & 0x1F; }
++		else if ((ch & 0xF0) == 0xE0)	{ extra = 2; cp = ch & 0x0F; }
++		else if ((ch & 0xF8) == 0xF0)	{ extra = 3; cp = ch & 0x07; }
++		else
+ 		{
+-			utf8ch = (ch & 0x1F) << 6;
+-			if (--numOfChars > 0 && (ch = *p) != kEndOfCharString)
+-			{
+-				p++;
+-				*s++ = utf8ch | (ch & 0x3F);
+-			}
++			*s++ = kUnmappable;			// stray continuation or invalid lead byte
++			continue;
+ 		}
+-		else if (ch != 0x0A)
+-			*s++ = ch;
++		while (extra > 0 && numOfChars > 0 && (*p & 0xC0) == 0x80)
++		{
++			cp = (cp << 6) | (*p++ & 0x3F);
++			numOfChars--;
++			extra--;
+ 		}
++		*s++ = (extra > 0 || cp > 0xFFFF) ? kUnmappable : (UniChar) cp;
++	}
+ 	*s = kEndOfUnicodeString;
+ 	return s - outStr;
+ }
+diff --git a/NCT_Projects/SM_NCT/SM/Utilities.cp b/NCT_Projects/SM_NCT/SM/Utilities.cp
+index 1479be9..2aa83bb 100644
+--- a/NCT_Projects/SM_NCT/SM/Utilities.cp
++++ b/NCT_Projects/SM_NCT/SM/Utilities.cp
+@@ -5,6 +5,7 @@
+ #include "Objects.h"
+ #include "Unicode.h"
+ #include "NewtonDebug.h"
++#include "NCTCompat.h"	// 2026
+ 
+ extern	unsigned char	ToHex(UniChar ch);
+ 

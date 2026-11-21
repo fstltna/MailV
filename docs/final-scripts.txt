@@ -1,0 +1,654 @@
+MailV 2026 - final clean versions of every changed script
+=========================================================
+
+Use this to tidy the project after debugging: paste each script over the
+current one (select all in the browser's script pane, paste, click the check
+mark). Everything here is the final version: the debug alerts, breadcrumbs
+and report-only try blocks are gone, and the real fixes are kept.
+
+Afterwards:
+  - Project Settings: turn OFF "Compile for Debugging"
+  - Project Settings: bump the version (e.g. 5.2.2) so it is distinguishable
+    from Simon Bell's 5.2.1
+  - Build, delete the old Mail V from Storage on the Newton, install
+
+Summary of what changed versus Simon's 5.2.1 source and why
+-----------------------------------------------------------
+  Native module (SM.ntkc, already built - nothing to do here)
+    - DecodeHeader: bounded charset copy (an unterminated "=?" overflowed a
+      32-byte buffer), RFC 2231 charset*lang
+    - DecodeQuotedPrintable: no more NUL written past the end of the buffer;
+      bare-LF soft breaks; malformed escapes kept literally
+    - DecodeBase64: rewritten (table overrun, CR/LF inside a group)
+    - UTF-8: 4-byte sequences (emoji) and invalid bytes become '?'
+    - NCTCompat.h: definitions missing from the NewtonDev NCT headers
+
+  Global Functions (Simon's file was not published)
+    - text-encoding registry functions, GIF stub (GIF.ntkc was not published)
+    - kTCP and the endpoint event / comm error constants: without these the
+      connection hung at "Connecting"
+
+  protoMailer
+    - DNSCallback, ExceptionHandler: back to Simon's originals
+
+  IMAP FSM
+    - BuildFolderList: works on accounts that have never received (nil uid
+      record - this was the original "Decoding" failure); a folder the
+      Newton can't add is skipped instead of aborting the receive
+    - RequestMailbox / RequestNumbers / DoNumbers: tolerate a missing uid
+      record or folder entry
+    - GotPart: plain-text fallback when the server's structure can't be read
+    - DecodePart: a part that can't be decoded is filed with a note instead
+      of aborting the whole receive
+    - imapInputSpec, imapLiteralInputSpec: back to Simon's originals
+
+  IMAP Parser (the Citadel fix)
+    - FETCH: Citadel answers a BODY request with BODYSTRUCTURE; treat it as BODY
+    - BODY-done, BODY-struct-next: skip BODYSTRUCTURE extension data
+      (disposition, parameters, NILs) instead of misreading it as message parts
+
+  POP FSM (POPMail project, only if you use POP)
+    - the "RETR response" guard: see the end of this file
+
+
+=====================================================================
+FILE: Global Functions   (whole text file - replace its contents)
+=====================================================================
+
+/*----------------------------------------------------------------------
+	Global Functions  (2026 reconstruction)
+
+	Simon Bell's original "Global Functions" file was not included in the
+	published MailV source. This replacement defines the build-time
+	constants the rest of the project uses that no other file defines.
+
+	Text encodings are kept in the global variable TextEncodings, a frame
+	keyed by MIME charset symbol. The native SM module looks charsets up
+	there (GetGlobalVar('TextEncodings).(charset)), so the layout must
+	stay the same.
+----------------------------------------------------------------------*/
+
+DefineGlobalConstant('kRegisterTextEncodingDefFunc,
+func(def)
+begin
+	if not def or not def.symbol then return nil;
+	local reg := GetGlobalVar('TextEncodings);
+	if not reg then
+		begin
+		DefGlobalVar(EnsureInternal('TextEncodings), {});
+		reg := GetGlobalVar('TextEncodings)
+		end;
+	local old := reg.(def.symbol);
+	if old and old.version and def.version and old.version > def.version then
+		return nil;
+	reg.(EnsureInternal(def.symbol)) := def;
+	if def.alternate then
+		foreach sym in def.alternate do
+			reg.(EnsureInternal(sym)) := def;
+	true
+end);
+
+DefineGlobalConstant('kUnRegisterTextEncodingDefFunc,
+func(sym)
+begin
+	local reg := GetGlobalVar('TextEncodings);
+	if reg and sym and HasSlot(reg, sym) then
+		RemoveSlot(reg, sym);
+	nil
+end);
+
+DefineGlobalConstant('kBuildTextEncodingPopupFunc,
+func()
+begin
+	local popup := [];
+	local seen := [];
+	local reg := GetGlobalVar('TextEncodings);
+	if reg then
+		foreach def in reg do
+			if IsFrame(def) and def.symbol and not LSearch(seen, def.symbol, 0, '|=|, nil) then
+				begin
+				AddArraySlot(seen, def.symbol);
+				AddArraySlot(popup, { item: if def.name then def.name else SPrintObject(def.symbol),
+											 symbol: def.symbol })
+				end;
+	if Length(popup) = 0 then
+		AddArraySlot(popup, { item: "Western (Latin 1)", symbol: '|windows-1252| });
+	Sort(popup, '|str<|, 'item);
+	popup
+end);
+
+//	GIF stub - the GIF.ntkc native module was not published, so sending a
+//	note as a GIF image is disabled in this build.
+DefineGlobalConstant('GIF, {
+	Encode: func(bitmap, store)
+		Throw('|evt.ex.msg|, "Sending as a GIF image isn't available in this build of Mail V."),
+	Decode: func(data, store)
+		nil
+});
+
+//	NIE transport service (value as compiled into Simon's 5.2.1 package)
+constant kTCP := 1;
+
+//	Endpoint event codes and comm error (Apple Transport.h / CommErrors.h)
+constant kEventToolSpecific := 1;		//	T_SPECEVT
+constant kEventDisconnect := 2;			//	T_DISCONNECT
+constant kEventRelease := 3;			//	T_ORDREL
+constant kCommErrNotConnected := -16009;	//	ERRBASE_COMMTOOL - 9
+
+
+=====================================================================
+FILE: protoMailer   METHOD: DNSCallback   (Simon's original)
+=====================================================================
+
+func(answers, error)
+begin
+isDNSPending := nil;
+if not error and Length(answers) > 0 then
+	begin
+	remoteIPAddr := answers[0].resultIPAddress;
+	local	statusFrame := {
+			statusText: LocObj("Connecting", 'statusMessages.Connecting),
+			titleText: InetIPAddressToString(remoteIPAddr),
+			appSymbol: kAppSymbol,
+			icon: kIcon_mail };
+	InetDisplayStatus(inetLinkID, statusDialog, statusFrame);
+	:ConnectToHost();
+	end
+else	//	error getting DNS address
+	begin
+	if kDebugOn then :NSLog([error, answers], nil);
+	GetRoot():Notify(kNotifyAlert, title, ParamStr(LocObj("Couldn't resolve IP address \"^0\"", 'mail.noAddress), [remoteAddr]));
+	:AbortConnection()		// release the link, since we did not contact anyone
+	end
+end
+
+
+=====================================================================
+FILE: protoMailer   METHOD: ExceptionHandler   (Simon's original)
+=====================================================================
+
+func(error)
+begin
+if kDebugOn then begin :NSLog("ExceptionHandler", nil); :NSLog(error, nil) end;
+local errCode := InetGetExceptionError(error);
+if not :IgnoreError(errCode) then
+	:HandleError(errCode)
+end
+
+
+=====================================================================
+FILE: IMAP FSM   METHOD: BuildFolderList
+=====================================================================
+
+func()
+begin
+if kDebugOn then :NSLog(mailboxList, nil);
+// Rebuild the UID frame so that obsolete folders are pruned
+local valid := {};
+// Add mailbox names to folder tab
+if not folders then
+	folders := {};
+// Ensure there is an INBOX even if the server did not report it
+if not FindStringInArray(mailboxList, "INBOX") then
+	AddArraySlot(mailboxList, "INBOX");
+foreach mailboxPath in mailboxList do
+	try
+		begin
+		local folderName;
+		local thePath := mailboxPath;
+		if StrEqual(thePath, "INBOX") then
+			begin
+			thePath := nil;
+			folderName := curAccount.name
+			end
+		else
+			begin
+			local mailboxName := Clone(thePath);
+			if StrFilled(curAccount.prefix) and BeginsWith(mailboxName, curAccount.prefix) then
+				begin
+				local prefixLen := StrLen(curAccount.prefix);
+				if not EndsWith(curAccount.prefix, mailboxDelimiter) then prefixLen := prefixLen + 1;
+				StrMunger(mailboxName, 0, prefixLen, nil, 0, nil)
+				end;
+			folderName := curAccount.name && mailboxName
+			end;
+		local label := AddFolder(folderName, 'iobox);
+		// if there are too many local folders (>12), label = nil
+		if not label then
+			label := GenFolderSym(folderName);
+		folders.(label) := { host: curAccount,
+									path: thePath };
+		// the uid record is nil on an account that has never received
+		valid.(label) := if IsFrame(curAccount.uid) then curAccount.uid.(label)
+		end
+	onexception |evt.ex| do
+		begin
+		// skip a folder we can't add rather than abort the whole receive
+		if kDebugOn then :NSLog(["Skipped folder", mailboxPath, CurrentException()], nil)
+		end;
+curAccount.uid := valid;
+:RequestMailbox()
+end
+
+
+=====================================================================
+FILE: IMAP FSM   METHOD: RequestMailbox
+=====================================================================
+
+func()
+begin
+msg := nil;
+local mbox := request.folder;
+// mbox is the folder symbol (or nil for the INBOX)
+if mbox and IsFrame(folders) and IsFrame(folders.(mbox)) then
+	begin
+	labelsFilter := mbox;
+	mbox := folders.(mbox).path;
+	// mbox is the IMAP path (or nil for the INBOX)
+	if mbox and CharPos(mbox, $ , 0) then
+		mbox := $" & mbox & $"
+	end
+else
+	begin
+	mbox := nil;
+	labelsFilter := GenFolderSym(curAccount.name)
+	end;
+// make sure the per-folder UID record exists
+if not IsFrame(curAccount.uid) then
+	curAccount.uid := {};
+:OutputCmd("SELECT ^?0^0|INBOX|", [mbox], 'RequestNumbers, nil)
+end
+
+	(Note: "$ ," above is a dollar sign followed by a SPACE - the space
+	 character literal. Keep the space.)
+
+
+=====================================================================
+FILE: IMAP FSM   METHOD: RequestNumbers
+=====================================================================
+
+func()
+begin
+msgIndex := 0;
+if msgCount = 0 then
+	// there's nothing there
+	:AllReceived()
+else
+	begin
+	msgList := Array(kMsgListInitSize, nil);
+	local uid := if IsFrame(curAccount.uid) then curAccount.uid.(labelsFilter);
+	uid := if IsString(uid) then floor(StringToNumber(uid)) + 1;
+	:OutputCmd("UID FETCH ^?0^0|1|:* (UID FLAGS)", [uid], 'DoNumbers, nil)
+	end
+end
+
+
+=====================================================================
+FILE: IMAP FSM   METHOD: DoNumbers   (keep the method name - the parser uses it)
+=====================================================================
+
+func()
+begin
+SetLength(msgList, msgIndex);
+msgCount := msgIndex;
+msgIndex := 0;
+if msgCount = 0 then
+	// there's nothing new there
+	:AllReceived()
+else
+	begin
+	// .Mac (and probably other servers) will send the last msg received
+	// even when we specified UIDs AFTER that msg
+	local uid := if IsFrame(curAccount.uid) then curAccount.uid.(labelsFilter);
+	if IsString(uid) and StrEqual(uid, msgList[0]) then msgIndex := 1;
+	// fetch the first envelope
+	:GetEnvelope()
+	end
+end
+
+
+=====================================================================
+FILE: IMAP FSM   METHOD: GotPart
+=====================================================================
+
+func()
+begin
+local part;
+local isBody;
+local index;
+if IsArray(msg.parts) then
+	begin
+	index := if msg.partIndex then msg.partIndex else 0;
+	part := msg.parts[index];
+	isBody := (index = 0);
+	index := index + 1;
+	if index >= Length(msg.parts) then index := 0;
+	msg.partIndex := index
+	end
+else
+	begin
+	part := msg.parts;
+	isBody := true
+	end;
+// If the server's body structure couldn't be read, treat the message as plain text
+if not IsFrame(part) or not IsFrame(part.MIME) then
+	begin
+	part := DeepClone('{ MIME: { type: [text, plain], attributes: nil, description: nil,
+								encoding: |7bit|, specifier: nil },
+							size: 0, title: nil, body: nil });
+	msg.parts := part;
+	isBody := true;
+	index := nil
+	end;
+:SetStatusDialog('Decoding, 'vProgress, { titleText: if isBody then msg.title else part.title });
+RefreshViews();
+:DecodePart(part);
+if isBody then
+	begin
+	msg.body := part.body;
+//	If the item has an app associated with it, set that in the wrapper.
+//	This is switched by the Part button, but that won't appear for messages with no attachments.
+	if part.appSymbol then
+		msg.appSymbol := part.appSymbol;
+	// Formerly at this point we updated the latest UID.
+	// However, if we do that in GotEnvelope then the item won't be refetched
+	// should any errors cause an exception before this point.
+	end;
+if index and index > 0 then
+	begin
+	:SetStatusDialog('Receiving, 'vProgress, { titleText: msg.parts[index].title });
+	local specifier := msg.parts[index].MIME.specifier;
+	if not specifier then
+		specifier := index + 1;
+	:OutputCmd("UID FETCH ^0 BODY[^1]", [msg.id, specifier], 'GotPart, nextPart)
+	end
+else
+	begin
+	if mode = 'batch and :GetConfig('mailDelete) then
+		:OutputCmd("UID STORE ^0 +FLAGS.SILENT (\\Seen \\Deleted)", [msg.id], 'GotPartX, 'GotPartX)
+	else
+		:GotPartX()
+	end
+end
+
+
+=====================================================================
+FILE: IMAP FSM   METHOD: DecodePart
+=====================================================================
+
+func(part)
+begin
+try
+	begin
+	local decoder := { _proto: mimeEncodings, _parent: self };
+	local mime := part.MIME;
+	// translate binhex MIME content type to transfer encoding
+	if mime.type[0] = 'application and mime.type[1] = '|mac-binhex40| then
+		begin
+		mime.type[1] := '|octet-stream|;
+		mime.encoding := 'binhex
+		end;
+	// ensure there's something to decode even if server returned NIL
+	if not msg.data then
+		msg.data := Clone("Nothing here.");
+	// perform transfer encoding on data and store decoded binary in the part's body
+	part.data := if mime.encoding then PerformIfDefined(decoder, mime.encoding, [msg.data]);
+	if not part.data then
+		part.data := msg.data;
+	msg.data := nil;
+	// translate anonymous MIME content type to something more specific if possible
+	if mime.type[0] = 'application and mime.type[1] = '|octet-stream| then
+		begin
+		local tx := GetRoot().(kAppSymbol).mimeTranslation;
+		foreach test in tx do
+			if call kCharEqualFunc with (part.data, test[0], test[1]) then
+				break mime.type := part.MIME.type := test[2]
+		end;
+	// decode the content type part.data -> part.body
+	decoder := { _proto: mimeTypes, _parent: self };
+	part.body := PerformIfDefined(decoder, mime.type[0], [part]);
+	if not part.body then
+		begin
+		//	make default body for unrecognized data - let the stationery decode it
+		part.body := {	class: mime.type[0],
+							data: part.data };
+		SetClass(part.body.data, mime.type[1])
+		end;
+	part.data := nil
+	end
+onexception |evt.ex| do
+	begin
+	// file the part with a note rather than abort the whole receive
+	local err := CurrentException();
+	if kDebugOn then :NSLog(["DecodePart", err], nil);
+	part.body := { class: 'text,
+	               text: "[Mail V could not decode this part. Error "
+	                     & (if err.error then err.error else "?") & "]" };
+	part.data := nil;
+	msg.data := nil
+	end
+end
+
+
+=====================================================================
+FILE: IMAP FSM   SLOT: imapInputSpec   (Simon's original - removes the debug wrappers)
+=====================================================================
+
+{	form: 'string,
+	termination: { byteCount: kVBOPageSize,
+						endSequence: unicodeCR & unicodeLF },
+	inputScript: func(ep, data, terminator, options)
+		begin
+		local longResponse := ep.msg.buf;
+		if terminator.condition = 'byteCount then
+			begin
+			// response is unusually long - save it in msg slot
+			if longResponse then
+				StrMunger(longResponse, StrLen(longResponse), 0, data, 0, nil)
+			else
+				ep.msg.buf := Clone(data);
+			return
+			end
+		else
+			if longResponse then
+				begin
+				// prepend data with long response
+				data := longResponse & data;
+				ep.msg.buf := nil
+				end;
+	// If we have some literal data (that is not the message body)
+	// then prepend it to what we just got.
+		if ep.msg.data and ep.parser and (ep.parser.savedState <> '|BODY-data|) then
+			begin
+			local literalString := ep:UnicodeString(ep.msg.data);
+			StrReplace(literalString, "\"", "'", nil);	// must NOT contain string delimiter
+			StrMunger(data, 0, 0, $" & literalString & $", 0, nil);	// but must be delimited
+			ep.msg.data := nil
+			end;
+if kDebugOn then ep:NSLog("IMAP: " & data, 'io);
+		local result := ep:ParseResponse(data);
+		if result = 'ok then
+			begin
+			if ep.fsmState then
+				Perform(ep, ep.fsmState, nil)
+			end
+		else if result = 'err then
+			begin
+			if ep.errState then
+				Perform(ep, ep.errState, nil)
+			else
+				begin
+				data := StringFilter(data, "\n\u000A\u", 'rejectAll);
+				GetRoot():Notify(kNotifyAlert, kAppName, data);
+				local doLogout := (ep.fsmState = 'LoginDone);
+				ep.fsmState := nil;
+				if doLogout then
+					AddDelayedSend(ep, 'LogoutDone, nil, 100)
+				end
+			end
+		else if IsInteger(result) then
+			begin
+			if result > 0 then
+				begin
+			// reset input spec to read number of bytes literally
+				local msgSize := result;
+				local literalSpec := Clone(ep.imapLiteralInputSpec);
+				literalSpec.targit := { data: if msgSize > kVBOThreshold then ep:GetDefaultOwnerStore():NewVBO('asciString, msgSize)
+																							else MakeBinary(msgSize, 'asciString),
+												offset: 0,
+										 		count: msgSize,
+										 		vboModCount: 0 };
+				if msgSize < kVBOPageSize then
+					literalSpec.termination := { byteCount: msgSize };
+				ep:SetInputSpec(literalSpec)
+				end
+			else	// ignore zero-sized literals - move on to the next state
+				begin
+				if ep.fsmState then
+					Perform(ep, ep.fsmState, nil)
+				end
+			end
+		else if IsString(result) then	// result is challenge string
+			ep:ReplyToChallenge(result)
+		end,
+	completionScript: func(ep, options, result)
+		begin
+if kDebugOn then ep:NSLog("imapInputSpec completionScript: " & NumberStr(result), nil);
+	//	Couldn't interpret server response.
+	//	Should try fetching next?
+		ep.fsmState := nil;
+		ep:HandleError(result)
+		end
+}
+
+
+=====================================================================
+FILE: IMAP FSM   SLOT: imapLiteralInputSpec   (one line back to the original)
+=====================================================================
+
+Replace the whole try ... onexception ... end; block around MungeBytes with
+Simon's original single line:
+
+		call SM.MungeBytes with (targit.data, targit.offset, data);
+
+
+=====================================================================
+FILE: IMAP Parser   METHOD: FETCH
+=====================================================================
+
+func(token)
+begin
+if token.type = 'lParen then
+	begin
+	local finalState;
+	if fsmState = 'DoNumbers then
+		begin
+		msg := { id: nil, flags: [] };
+		finalState := '|FETCH-id|
+		end
+	else
+		finalState := 'FETCH;
+	stack:push(finalState)
+	end
+else if token.type = 'atom then
+	begin
+	// Citadel answers a BODY request with BODYSTRUCTURE - treat it the same
+	local item := Intern(token.buf);
+	if item = 'BODYSTRUCTURE then 'BODY else item
+	end
+else if token.type = 'rParen then
+	stack:pop()
+end
+
+
+=====================================================================
+FILE: IMAP Parser   METHOD: BODY-done
+=====================================================================
+
+func(token)
+begin
+if token.type = 'rParen then
+	begin
+	local charset := structure.MIME.attributes.charset;
+	if charset then
+		structure.MIME.attributes.charset := Intern(charset);
+	if IsArray(structureParts) then
+		begin
+		AddArraySlot(structureParts, structure);
+		msg.size := msg.size + structure.size;
+		if msg.sizeStr = nil then
+			msg.sizeStr := call kMakeSizeStrFunc with (msg.size)
+		end
+	else
+		begin
+		msg.parts := structure;
+		msg.size := structure.size;
+		msg.sizeStr := call kMakeSizeStrFunc with (msg.size)
+		end;
+	stack:pop()
+	end
+else if token.type = 'lParen then
+	begin
+	// BODYSTRUCTURE extension data, eg disposition ("attachment" NIL) - skip it
+	stack:push('|BODY-done|);
+	'skip
+	end
+else
+	'|BODY-done|
+end
+
+
+=====================================================================
+FILE: IMAP Parser   METHOD: BODY-struct-next
+=====================================================================
+
+func(token)
+begin
+if token.type = 'lParen then
+	begin
+	stack:push('|BODY-struct-next|);
+	if ClassOf(structureParts) = 'array then
+		'|BODY-struct|		// start of the next part
+	else
+		'skip				// extension data after the multipart subtype - skip it
+	end
+else if token.type = 'string then
+	begin
+	// the first string is the multipart subtype eg "mixed"; ignore later ones (extension data)
+	if ClassOf(structureParts) = 'array then
+		SetClass(structureParts, Intern(token.buf));
+	'|BODY-struct-next|
+	end
+else if token.type = 'rParen then
+	begin
+	local super := structureStack:pop();
+	if super then
+		begin
+		AddArraySlot(super, structureParts);
+		structureParts := super
+		end
+	else
+		begin
+		msg.parts := structureParts;
+		msg.sizeStr := ParamStr("^0 (^1)", [msg.sizeStr, call kMakeSizeStrFunc with (msg.size)])
+		end;
+	stack:pop()
+	end
+else
+	'|BODY-struct-next|	// eg NIL in extension data
+end
+
+
+=====================================================================
+POPMail project only (skip if you use IMAP)
+FILE: POP FSM   METHOD: the one whose comment starts "The RETR response has been received"
+=====================================================================
+
+Change:
+	StrMunger(data, 0, endOfHeader + 2, nil, 0, nil);
+to:
+	if endOfHeader then StrMunger(data, 0, endOfHeader + 2, nil, 0, nil);
+
+Note: the BODYSTRUCTURE parser fix is IMAP-only. POP uses its own header
+parser, which reads the raw message and isn't affected by Citadel's
+BODYSTRUCTURE behaviour.

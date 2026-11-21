@@ -1,0 +1,1 @@
+# simulate project selection in NCT Build menuSet NCT_new_project "SM_NCT:SM:"Export NCT_new_projectSet NCT_cur_project {NCT_new_project}Execute SelectNCTProject# Build Current Projectif "{NCTBuildResultsFile}"	Set NCTredirection "·· ¶"{NCTBuildResultsFile}¶""else	Set NCTredirection ""endNCTRunBuildCommands {NCTredirection}

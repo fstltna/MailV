@@ -1,0 +1,431 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 42;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F4D55E1E0D3A5A1500E16EB5 /* main.cp in Sources */ = {isa = PBXBuildFile; fileRef = F4C352AC060B05B2007C006A /* main.cp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildStyle section */
+		6614375C01F317850003E189 /* Development */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				ZERO_LINK = YES;
+			};
+			name = Development;
+		};
+		6614375D01F317850003E189 /* Deployment */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				ZERO_LINK = NO;
+			};
+			name = Deployment;
+		};
+/* End PBXBuildStyle section */
+
+/* Begin PBXFileReference section */
+		66102322020035460003E189 /* ISOCodes.r */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.rez; path = ISOCodes.r; sourceTree = SOURCE_ROOT; };
+		661023240200374B0003E189 /* UniC.r */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.rez; path = UniC.r; sourceTree = SOURCE_ROOT; };
+		6614375E01F317CA0003E189 /* DecodeFunc.cp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 1; name = DecodeFunc.cp; path = SM/DecodeFunc.cp; sourceTree = SOURCE_ROOT; };
+		6614375F01F3180D0003E189 /* FilesInBuild */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = text; name = FilesInBuild; path = SM/FilesInBuild; sourceTree = SOURCE_ROOT; };
+		6614376001F318510003E189 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.make; name = Makefile; path = SM/Makefile; sourceTree = SOURCE_ROOT; };
+		6614376101F318510003E189 /* SM.exp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.exports; name = SM.exp; path = SM/SM.exp; sourceTree = SOURCE_ROOT; };
+		66154FF401FC1DE100ED2883 /* Includes */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = folder; name = Includes; path = /Users/simon/Newton/NCT_Projects/Includes; sourceTree = "<absolute>"; };
+		663FF0F8023F84CB0003E189 /* Utilities.cp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; name = Utilities.cp; path = SM/Utilities.cp; sourceTree = SOURCE_ROOT; };
+		66D49666045D2A4E00A80002 /* DecodeCard.cp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; name = DecodeCard.cp; path = SM/DecodeCard.cp; sourceTree = "<group>"; };
+		66F48CC801FEC30E00FC5084 /* UnRelocate.cp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; name = UnRelocate.cp; path = SM/UnRelocate.cp; sourceTree = SOURCE_ROOT; };
+		66F48CCA01FEC32C00FC5084 /* MD5.c */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.c; name = MD5.c; path = SM/MD5.c; sourceTree = SOURCE_ROOT; };
+		66F48CCB01FEC32C00FC5084 /* MD5Interface.cp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; name = MD5Interface.cp; path = SM/MD5Interface.cp; sourceTree = SOURCE_ROOT; };
+		66F48CCF01FECECA00FC5084 /* ObjHeader.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = ObjHeader.h; path = SM/ObjHeader.h; sourceTree = SOURCE_ROOT; };
+		66F48CD001FECECA00FC5084 /* PackageParts.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = PackageParts.h; path = SM/PackageParts.h; sourceTree = SOURCE_ROOT; };
+		66F48CD401FF1EA400FC5084 /* UnicodeMapper.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; name = UnicodeMapper.h; path = SM/UnicodeMapper.h; sourceTree = SOURCE_ROOT; };
+		66F48CD501FF1EA400FC5084 /* UnicodeMapper.cp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; lineEnding = 1; name = UnicodeMapper.cp; path = SM/UnicodeMapper.cp; sourceTree = SOURCE_ROOT; };
+		F49F51BD0735190B00E4811E /* BuildScript */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = BuildScript; path = SM/BuildScript; sourceTree = "<group>"; };
+		F4C352AC060B05B2007C006A /* main.cp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = main.cp; sourceTree = "<group>"; };
+		F4D55E250D3A5A1500E16EB5 /* Info-Test_Rig.plist */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "Info-Test_Rig.plist"; sourceTree = "<group>"; };
+		F4D55E260D3A5A1600E16EB5 /* Test Rig.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Test Rig.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F4D55E1F0D3A5A1500E16EB5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		6614375B01F317850003E189 = {
+			isa = PBXGroup;
+			children = (
+				66154FF401FC1DE100ED2883 /* Includes */,
+				66F48CCF01FECECA00FC5084 /* ObjHeader.h */,
+				66F48CD001FECECA00FC5084 /* PackageParts.h */,
+				66F48CD401FF1EA400FC5084 /* UnicodeMapper.h */,
+				66F48CD501FF1EA400FC5084 /* UnicodeMapper.cp */,
+				6614375E01F317CA0003E189 /* DecodeFunc.cp */,
+				66D49666045D2A4E00A80002 /* DecodeCard.cp */,
+				663FF0F8023F84CB0003E189 /* Utilities.cp */,
+				66F48CC801FEC30E00FC5084 /* UnRelocate.cp */,
+				66F48CCA01FEC32C00FC5084 /* MD5.c */,
+				66F48CCB01FEC32C00FC5084 /* MD5Interface.cp */,
+				F49F51BD0735190B00E4811E /* BuildScript */,
+				6614375F01F3180D0003E189 /* FilesInBuild */,
+				6614376001F318510003E189 /* Makefile */,
+				6614376101F318510003E189 /* SM.exp */,
+				661023240200374B0003E189 /* UniC.r */,
+				66102322020035460003E189 /* ISOCodes.r */,
+				F47A541605FB86D0006BE859 /* Experimental */,
+				66154FB001FC175A00ED2883 /* Products */,
+				F4D55E250D3A5A1500E16EB5 /* Info-Test_Rig.plist */,
+			);
+			sourceTree = "<group>";
+		};
+		66154FB001FC175A00ED2883 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F4D55E260D3A5A1600E16EB5 /* Test Rig.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F47A541605FB86D0006BE859 /* Experimental */ = {
+			isa = PBXGroup;
+			children = (
+				F4C352AC060B05B2007C006A /* main.cp */,
+			);
+			name = Experimental;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		F4D55E1B0D3A5A1500E16EB5 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXLegacyTarget section */
+		F49F51920735168800E4811E /* MPW */ = {
+			isa = PBXLegacyTarget;
+			buildArgumentsString = "-i BuildScript";
+			buildConfigurationList = F42429BB093F560700B9659F /* Build configuration list for PBXLegacyTarget "MPW" */;
+			buildPhases = (
+			);
+			buildSettings = {
+				OPTIMIZATION_CFLAGS = "";
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = nct;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+			};
+			buildToolPath = /usr/local/bin/toolserver;
+			buildWorkingDirectory = /Users/simon/Newton/NCT_Projects/SM_NCT/SM;
+			dependencies = (
+			);
+			name = MPW;
+			passBuildSettingsInEnvironment = 0;
+			productName = MPW;
+		};
+/* End PBXLegacyTarget section */
+
+/* Begin PBXNativeTarget section */
+		F4D55E1A0D3A5A1500E16EB5 /* Test Rig */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F4D55E210D3A5A1500E16EB5 /* Build configuration list for PBXNativeTarget "Test Rig" */;
+			buildPhases = (
+				F4D55E1B0D3A5A1500E16EB5 /* Headers */,
+				F4D55E1C0D3A5A1500E16EB5 /* Resources */,
+				F4D55E1D0D3A5A1500E16EB5 /* Sources */,
+				F4D55E1F0D3A5A1500E16EB5 /* Frameworks */,
+				F4D55E200D3A5A1500E16EB5 /* Rez */,
+			);
+			buildRules = (
+			);
+			buildSettings = {
+				OPTIMIZATION_CFLAGS = "-O0";
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = "Test Rig";
+				REZ_EXECUTABLE = YES;
+				SECTORDER_FLAGS = "";
+				USE_GCC3_PFE_SUPPORT = NO;
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				WRAPPER_EXTENSION = app;
+			};
+			dependencies = (
+			);
+			name = "Test Rig";
+			productInstallPath = "$(USER_APPS_DIR)";
+			productName = "Test Rig";
+			productReference = F4D55E260D3A5A1600E16EB5 /* Test Rig.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6614375A01F317850003E189 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = F42429BF093F560700B9659F /* Build configuration list for PBXProject "Mail" */;
+			buildSettings = {
+			};
+			buildStyles = (
+				6614375C01F317850003E189 /* Development */,
+				6614375D01F317850003E189 /* Deployment */,
+			);
+			hasScannedForEncodings = 1;
+			mainGroup = 6614375B01F317850003E189;
+			productRefGroup = 66154FB001FC175A00ED2883 /* Products */;
+			projectDirPath = "";
+			targets = (
+				F4D55E1A0D3A5A1500E16EB5 /* Test Rig */,
+				F49F51920735168800E4811E /* MPW */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F4D55E1C0D3A5A1500E16EB5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXRezBuildPhase section */
+		F4D55E200D3A5A1500E16EB5 /* Rez */ = {
+			isa = PBXRezBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXRezBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F4D55E1D0D3A5A1500E16EB5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F4D55E1E0D3A5A1500E16EB5 /* main.cp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F42429BC093F560700B9659F /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = nct;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				ZERO_LINK = YES;
+			};
+			name = Development;
+		};
+		F42429BD093F560700B9659F /* Deployment */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = nct;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				ZERO_LINK = NO;
+			};
+			name = Deployment;
+		};
+		F42429BE093F560700B9659F /* Default */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = nct;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+			};
+			name = Default;
+		};
+		F42429C0093F560700B9659F /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Development;
+		};
+		F42429C1093F560700B9659F /* Deployment */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Deployment;
+		};
+		F42429C2093F560700B9659F /* Default */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Default;
+		};
+		F4D55E220D3A5A1500E16EB5 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_ENABLE_PASCAL_STRINGS = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_USE_GCC3_PFE_SUPPORT = NO;
+				INFOPLIST_FILE = "Info-Test_Rig.plist";
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PREBINDING = NO;
+				PRODUCT_NAME = "Test Rig";
+				REZ_EXECUTABLE = YES;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				WRAPPER_EXTENSION = app;
+				ZERO_LINK = NO;
+			};
+			name = Development;
+		};
+		F4D55E230D3A5A1500E16EB5 /* Deployment */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_USE_GCC3_PFE_SUPPORT = NO;
+				INFOPLIST_FILE = "Info-Test_Rig__Upgraded_.plist";
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = "Test Rig";
+				REZ_EXECUTABLE = YES;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				WRAPPER_EXTENSION = app;
+				ZERO_LINK = NO;
+			};
+			name = Deployment;
+		};
+		F4D55E240D3A5A1500E16EB5 /* Default */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_USE_GCC3_PFE_SUPPORT = NO;
+				INFOPLIST_FILE = "Info-Test_Rig__Upgraded_.plist";
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = "Test Rig";
+				REZ_EXECUTABLE = YES;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				WRAPPER_EXTENSION = app;
+			};
+			name = Default;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F42429BB093F560700B9659F /* Build configuration list for PBXLegacyTarget "MPW" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F42429BC093F560700B9659F /* Development */,
+				F42429BD093F560700B9659F /* Deployment */,
+				F42429BE093F560700B9659F /* Default */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Default;
+		};
+		F42429BF093F560700B9659F /* Build configuration list for PBXProject "Mail" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F42429C0093F560700B9659F /* Development */,
+				F42429C1093F560700B9659F /* Deployment */,
+				F42429C2093F560700B9659F /* Default */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Default;
+		};
+		F4D55E210D3A5A1500E16EB5 /* Build configuration list for PBXNativeTarget "Test Rig" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F4D55E220D3A5A1500E16EB5 /* Development */,
+				F4D55E230D3A5A1500E16EB5 /* Deployment */,
+				F4D55E240D3A5A1500E16EB5 /* Default */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Default;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 6614375A01F317850003E189 /* Project object */;
+}

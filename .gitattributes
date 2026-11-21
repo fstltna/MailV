@@ -1,0 +1,3 @@
+source/** -text -diff
+*.txt text
+*.md text
